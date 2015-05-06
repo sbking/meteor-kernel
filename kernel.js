@@ -8,6 +8,11 @@ var timedFunctions = [];
 // General render engine
 var renderFunctions = [];
 
+// Functions run every frame
+var repeatFunctions = {};
+var repeatIds = [];
+var nextRepeatId = 0;
+
 // Functions that will be run when theres time for it
 var deferedFunctions = [];
 
@@ -41,6 +46,29 @@ Kernel.onRender = function onRender(f) {
   renderFunctions.push(f);
   return Kernel;
 };
+
+/**
+ * Register repeated frame callback
+ * @param  {function}      Function to repeat for multiple frames
+ * @return {object}        A handle with a stop() method
+ */
+Kernel.repeat = function repeat(f) {
+  var id = nextRepeatId++;
+  repeatIds.push(id);
+  repeatFunctions[id] = f;
+  return {
+    id: id,
+    stop: stop
+  };
+};
+
+function stop() {
+  var index = repeatIds.indexOf(this.id);
+  if (index !== -1) {
+    delete repeatFunctions[this.id];
+    repeatIds.splice(index, 1);
+  }
+}
 
 /**
  * Run function when theres time for it in the render loop
@@ -286,6 +314,12 @@ Kernel.loop = function renderLoop() {
   while (renderLength--) {
     // Run normal function in frame
     (renderFunctions.shift())(timestamp, lastTimeStamp, Kernel.currentFrame);
+  }
+
+  // Run all repeat functions
+  var repeatFunction;
+  for (var j = 0; j < repeatIds.length; j++) {
+    repeatFunctions[repeatIds[j]](timestamp, lastTimeStamp, Kernel.currentFrame);
   }
 
   // Flags for limiting verbosity
